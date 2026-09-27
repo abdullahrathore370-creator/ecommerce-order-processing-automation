@@ -1,0 +1,531 @@
+{
+  "name": "E-commerce Order Processing Automation",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "ecommerce-order",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "b23605da-a975-4975-bbd2-8f4dc87ef6ba",
+      "name": "Webhook",
+      "webhookId": "afadd198-90b7-4067-867c-f952a9bc3a4c"
+    },
+    {
+      "parameters": {
+        "jsCode": "const order = $json.body || $json;\n\nconst required = [\n  \"customerName\",\n  \"email\",\n  \"product\",\n  \"quantity\",\n  \"price\",\n  \"shippingAddress\",\n  \"paymentMethod\"\n];\n\nconst missing = required.filter(field => !order[field]);\n\nreturn [{\n  json: {\n    ...order,\n    isValid: missing.length === 0,\n    missingFields: missing\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        160,
+        96
+      ],
+      "id": "a68feeec-ca11-497c-a962-f978762c53e5",
+      "name": "Validate Order"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Customer order data:\n{{ JSON.stringify($('Validate Order').item.json.body) }}\n\nProduct data:\n{{ JSON.stringify($json) }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "Return the original customer and order information exactly as received.\n\nNever use N/A for:\n- order_id\n- customer_name\n- email\n- product\n- quantity\n\nUse these exact source fields:\ncustomerName → customer_name\nemail → email\nproduct → product\nquantity → quantity\nshippingAddress → shipping_address\npaymentMethod → payment_method\n\nUse the product information from the Products node:\nprice → price\n\nCalculate:\ntotal_amount = price × quantity\n\nReturn only:\n\n{\n  \"order_id\": \"\",\n  \"customer_name\": \"\",\n  \"email\": \"\",\n  \"product\": \"\",\n  \"quantity\": 0,\n  \"price\": 0,\n  \"total_amount\": 0,\n  \"shipping_address\": \"\",\n  \"payment_method\": \"\",\n  \"action\": \"\",\n  \"reason\": \"\"\n}"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        720,
+        0
+      ],
+      "id": "bfdc20a7-e4ce-4d72-977b-a488bb7d1d2b",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-3.1-flash-lite",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.2,
+      "position": [
+        688,
+        240
+      ],
+      "id": "6ac0ae75-eb71-4d02-8beb-50b2f957fc19",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": null,
+          "name": "",
+          "__aiGatewayManaged": true
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n  \"order_id\": \"string\",\n  \"action\": \"string\",\n  \"customer_name\": \"string\",\n  \"email\": \"string\",\n  \"product\": \"string\",\n  \"quantity\": 0,\n  \"price\": 0,\n  \"total_amount\": 0,\n  \"reason\": \"string\"\n}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        864,
+        224
+      ],
+      "id": "3e10aa2d-0604-404d-bbf0-e233d0e3f86a",
+      "name": "Structured Output Parser"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "10OJj0VliDGHRWhl7dxljA9akgE5jmSLKBqhuZu0oZzs",
+          "mode": "list",
+          "cachedResultName": "Products",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/10OJj0VliDGHRWhl7dxljA9akgE5jmSLKBqhuZu0oZzs/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/10OJj0VliDGHRWhl7dxljA9akgE5jmSLKBqhuZu0oZzs/edit#gid=0"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "Product Name ",
+              "lookupValue": "={{ $json.product }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        336,
+        0
+      ],
+      "id": "08daec63-730b-4e21-9e79-1cafa1cc11d7",
+      "name": "Products",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "AfNVTc8GJ0Kqjesd",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "1yYaMYfajQqnsYHYtrIPLYxZT3oklaveuv70YHB3G9E4",
+          "mode": "list",
+          "cachedResultName": "Ecommerce Orders",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1yYaMYfajQqnsYHYtrIPLYxZT3oklaveuv70YHB3G9E4/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1yYaMYfajQqnsYHYtrIPLYxZT3oklaveuv70YHB3G9E4/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Order ID": "={{ $json.output.order_id }}",
+            "Customer Name": "={{ $json.output.customer_name }}",
+            "Email": "={{ $json.output.email }}",
+            "Product": "={{ $json.output.product }}",
+            "Price": "={{ $json.output.price }}",
+            "Quantity": "={{ $json.output.quantity }}",
+            "Total Amount": "={{ $json.output.total_amount }}",
+            "Shipping Address": "={{ $('Validate Order').item.json.shippingAddress }}",
+            "Payment Method": "={{ $('Validate Order').item.json.paymentMethod }}",
+            "Payment Status": "Pending",
+            "Order Status": "\tProcessing",
+            "Order Date": "=\t{{ $now.toFormat(\"yyyy-MM-dd HH:mm:ss\") }}"
+          },
+          "matchingColumns": [
+            "Order ID"
+          ],
+          "schema": [
+            {
+              "id": "Order ID",
+              "displayName": "Order ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Customer Name",
+              "displayName": "Customer Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Email",
+              "displayName": "Email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Product",
+              "displayName": "Product",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Quantity",
+              "displayName": "Quantity",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Price",
+              "displayName": "Price",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Total Amount",
+              "displayName": "Total Amount",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Shipping Address",
+              "displayName": "Shipping Address",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Payment Method",
+              "displayName": "Payment Method",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Payment Status",
+              "displayName": "Payment Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Order Status",
+              "displayName": "Order Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Order Date",
+              "displayName": "Order Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        992,
+        0
+      ],
+      "id": "b169e827-a1e9-4537-986e-da9f21c8474c",
+      "name": "Update order ",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "AfNVTc8GJ0Kqjesd",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.Email }}",
+        "subject": "=Order Confirmation - {{ $json[\"Order ID\"] }}",
+        "message": "=Dear {{ $json[\"Customer Name\"] }},  Thank you for your order.  Order ID: {{ $json[\"Order ID\"] }} Product: {{ $json.Product }} Quantity: {{ $json.Quantity }} Total Amount: Rs. {{ $json[\"Total Amount\"] }}  Your order has been received and is currently being processed.  Thank you for shopping with us.",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1168,
+        112
+      ],
+      "id": "d5b18a56-5e85-4755-8b0e-8204753d99cf",
+      "name": "Send a message",
+      "webhookId": "38127794-e3e8-4ac5-b89b-1090ad9854cb",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "pim5eI1IiUJXd50l",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\n  \"success\": true,\n  \"message\": \"Order processed successfully\",\n  \"order_id\": \"{{ $json['Order ID'] }}\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1328,
+        -16
+      ],
+      "id": "97c5e059-532e-4661-b48c-5bd270677d82",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a3b3f070-f8db-410a-8474-4519913f3f94",
+              "name": "customerName",
+              "value": "={{ $('Validate Order').item.json.body.customerName }}",
+              "type": "string"
+            },
+            {
+              "id": "603659f0-9be8-4850-a5e6-7f22dab4aba4",
+              "name": "email",
+              "value": "={{ $('Validate Order').item.json.body.email }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        560,
+        0
+      ],
+      "id": "fd793d8c-ae7b-4704-915f-7acb044a3918",
+      "name": "Edit Fields"
+    }
+  ],
+  "pinData": {
+    "Webhook": [
+      {
+        "json": {
+          "headers": {
+            "host": "abdullah370.app.n8n.cloud",
+            "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36",
+            "content-length": "163",
+            "accept": "*/*",
+            "accept-encoding": "gzip, br",
+            "accept-language": "en-GB,en-US;q=0.9,en;q=0.8",
+            "cdn-loop": "cloudflare; loops=1; subreqs=1",
+            "cf-connecting-ip": "2407:aa80:314:e7de:1d96:7950:4ac7:c9cc",
+            "cf-ew-via": "15",
+            "cf-ipcountry": "PK",
+            "cf-ray": "a41b30831f72773a-KHI",
+            "cf-visitor": "{\"scheme\":\"https\"}",
+            "cf-worker": "n8n.cloud",
+            "content-type": "application/json",
+            "origin": "null",
+            "priority": "u=1, i",
+            "sec-ch-ua": "\"Google Chrome\";v=\"153\", \"Not_A Brand\";v=\"8\", \"Chromium\";v=\"153\"",
+            "sec-ch-ua-mobile": "?0",
+            "sec-ch-ua-platform": "\"Windows\"",
+            "sec-fetch-dest": "empty",
+            "sec-fetch-mode": "cors",
+            "sec-fetch-site": "cross-site",
+            "x-forwarded-for": "2407:aa80:314:e7de:1d96:7950:4ac7:c9cc, 104.22.232.132",
+            "x-forwarded-host": "abdullah370.app.n8n.cloud",
+            "x-forwarded-port": "443",
+            "x-forwarded-proto": "https",
+            "x-forwarded-server": "traefik-prod-users-gwc-47-659485895b-lwjzs",
+            "x-is-trusted": "yes",
+            "x-real-ip": "2407:aa80:314:e7de:1d96:7950:4ac7:c9cc"
+          },
+          "params": {},
+          "query": {},
+          "body": {
+            "customerName": "abd",
+            "email": "therapist@rehab.local",
+            "product": "Wireless Headphones",
+            "quantity": 1,
+            "shippingAddress": "jhgjgjhg",
+            "paymentMethod": "Cash on Delivery"
+          },
+          "webhookUrl": "https://abdullah370.app.n8n.cloud/webhook/ecommerce-order",
+          "executionMode": "production"
+        },
+        "pairedItem": {
+          "item": 0
+        }
+      }
+    ]
+  },
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Validate Order",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Order": {
+      "main": [
+        [
+          {
+            "node": "Products",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Products": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Update order ",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update order ": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a message": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "cb47d9f3-610f-47f8-af9b-3fed90c38405",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "81766d8824662db29d014494c967fe86d12bf8cb0db3b9090901ec14e25ab153"
+  },
+  "nodeGroups": [],
+  "id": "RNroJropmr2wd0XN",
+  "tags": []
+}
